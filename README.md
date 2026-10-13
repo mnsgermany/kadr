@@ -27,8 +27,9 @@ install.bat
 1. проверит драйвер NVIDIA;
 2. поставит Node.js через winget, если его нет;
 3. скачает портативный ComfyUI v0.39.0 в папку `comfy\`;
-4. скачает модели (Wan 2.2 5B, текстовый энкодер, VAE, Real-ESRGAN ×2);
-5. соберёт сайт.
+4. поставит ffmpeg (пакет imageio-ffmpeg с PyPI, без GitHub);
+5. скачает модели (Wan 2.2 5B, текстовый энкодер, VAE, Real-ESRGAN ×2);
+6. соберёт сайт.
 
 Если загрузка прервётся, просто запусти `install.bat` ещё раз: он докачает недостающее.
 
@@ -64,7 +65,7 @@ start.bat
 
 ```bash
 npm install
-npm run dev
+npm run dev   # нужен ffmpeg в PATH или путь к нему в FFMPEG_PATH
 ```
 
 - `src/lib/workflow.ts` — граф ComfyUI для одного куска.

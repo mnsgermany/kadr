@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { annotated, downloadFile, interrupt, runPrompt, type ComfyFile } from "./comfy";
 import { boomerang, concatSegments, crossfadeLoop, probeDuration, thumbnail } from "./ffmpeg";
-import { FPS, STYLES, type GenerateRequest } from "./options";
+import { STYLES, type GenerateRequest } from "./options";
 import { buildSegmentWorkflow } from "./workflow";
 
 export const DATA_DIR = path.resolve(process.env.KADR_DATA_DIR ?? "data");
@@ -200,7 +200,7 @@ async function execute(job: Job) {
     await crossfadeLoop(joined, final);
   } else if (req.loop === "boomerang") {
     await update("Делаю бумеранг", 0.97);
-    await boomerang(joined, final, FPS);
+    await boomerang(joined, final);
   } else {
     await fs.rename(joined, final);
   }
