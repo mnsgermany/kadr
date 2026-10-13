@@ -58,7 +58,12 @@ export function buildSegmentWorkflow(p: SegmentParams): Record<string, Node> {
         denoise: 1,
       },
     },
-    decode: { class_type: "VAEDecode", inputs: { samples: ["sampler", 0], vae: ["vae", 0] } },
+    // Tiled: a full 121-frame 720p decode needs more than 8 GB, and on Windows the
+    // driver then spills into system RAM and the decode crawls for hours.
+    decode: {
+      class_type: "VAEDecodeTiled",
+      inputs: { samples: ["sampler", 0], vae: ["vae", 0], tile_size: 512, overlap: 64, temporal_size: 64, temporal_overlap: 8 },
+    },
     lastFrame: {
       class_type: "ImageFromBatch",
       inputs: { image: ["decode", 0], batch_index: -1, length: 1 },
