@@ -87,6 +87,16 @@ if (-not (Test-Path (Join-Path $Portable "run_nvidia_gpu.bat"))) {
   Write-Host "Уже установлен: $Portable"
 }
 
+Step "ffmpeg"
+# Берём ffmpeg из пакета imageio-ffmpeg с PyPI: он ставится во встроенный Python ComfyUI
+# и не требует доступа к github.com.
+$Python = Join-Path $Portable "python_embeded\python.exe"
+$pipArgs = @("-s", "-m", "pip", "install", "--disable-pip-version-check", "imageio-ffmpeg==0.6.0")
+$pipProxy = SystemProxy "https://pypi.org"
+if ($pipProxy) { $pipArgs += @("--proxy", $pipProxy) }
+& $Python @pipArgs
+if ($LASTEXITCODE -ne 0) { throw "Не удалось установить ffmpeg (pip install imageio-ffmpeg)" }
+
 Step "Модели (~17 ГБ, первый раз это долго)"
 foreach ($m in $ModelFiles) {
   $dir = Join-Path $Models $m.Dir

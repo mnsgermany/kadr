@@ -23,6 +23,13 @@ if (-not (ComfyAlive)) {
   if (-not (ComfyAlive)) { Write-Warning "ComfyUI пока не отвечает. Сайт всё равно запустится и подхватит его позже." }
 }
 
+$Python = Join-Path $Portable "python_embeded\python.exe"
+try { $env:FFMPEG_PATH = (& $Python -s -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())" | Out-String).Trim() }
+catch { $env:FFMPEG_PATH = "" }
+if (-not $env:FFMPEG_PATH -or -not (Test-Path $env:FFMPEG_PATH)) {
+  throw "ffmpeg не найден. Запусти install.bat ещё раз."
+}
+
 Push-Location $Root
 try {
   if (-not (Test-Path (Join-Path $Root ".next"))) { npm run build }
