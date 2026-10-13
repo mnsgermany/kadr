@@ -20,10 +20,35 @@ $ModelFiles = @(
 
 function Step($text) { Write-Host "`n==> $text" -ForegroundColor Green }
 
+# VPN-клиенты в режиме «системный прокси» (Hiddify, v2rayN, Clash и т.п.) настраивают
+# прокси Windows. Браузер его видит, а curl и npm нет, поэтому подхватываем его сами.
+function SystemProxy($url) {
+  try {
+    $proxy = [System.Net.WebRequest]::GetSystemWebProxy().GetProxy([Uri]$url)
+    if ($proxy -and $proxy.Authority -ne ([Uri]$url).Authority) { return $proxy.AbsoluteUri }
+  } catch {}
+  return $null
+}
+
 function Download($url, $dest) {
   # curl.exe встроен в Windows 10/11; -C - докачивает прерванную загрузку.
-  & curl.exe -L --fail --retry 5 --retry-delay 5 -C - -o "$dest.part" $url
-  if ($LASTEXITCODE -ne 0) { throw "Не удалось скачать $url" }
+  $curlArgs = @("-L", "--fail", "--retry", "5", "--retry-delay", "5", "-C", "-", "-o", "$dest.part")
+  $proxy = SystemProxy $url
+  if ($proxy) {
+    Write-Host "Через системный прокси $proxy"
+    $curlArgs += @("--proxy", $proxy)
+  }
+  & curl.exe @curlArgs $url
+  if ($LASTEXITCODE -ne 0) {
+    Write-Host ""
+    Write-Host "Не получилось скачать файл. Скорее всего, сайт не открывается без VPN." -ForegroundColor Yellow
+    Write-Host "1) Включи VPN для всего компьютера (не только для браузера) и запусти install.bat снова." -ForegroundColor Yellow
+    Write-Host "2) Или скачай файл в браузере по ссылке:" -ForegroundColor Yellow
+    Write-Host "   $url" -ForegroundColor Yellow
+    Write-Host "   и сохрани его как: $dest" -ForegroundColor Yellow
+    Write-Host "   Потом запусти install.bat снова, он продолжит с этого места." -ForegroundColor Yellow
+    throw "Не удалось скачать $url"
+  }
   Move-Item -Force "$dest.part" $dest
 }
 
@@ -75,6 +100,8 @@ foreach ($m in $ModelFiles) {
 Step "Собираю сайт"
 Push-Location $Root
 try {
+  $npmProxy = SystemProxy "https://registry.npmjs.org"
+  if ($npmProxy) { $env:HTTPS_PROXY = $npmProxy; $env:HTTP_PROXY = $npmProxy }
   npm ci
   if ($LASTEXITCODE -ne 0) { throw "npm ci завершился с ошибкой" }
   npm run build
