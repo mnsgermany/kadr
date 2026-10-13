@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# КАДР — видео из текста на своём компьютере
 
-## Getting Started
+КАДР превращает текстовое описание в видео. Всё работает локально на твоей видеокарте NVIDIA: без подписок, ключей и оплаты за генерации.
 
-First, run the development server:
+- Модель: **Wan 2.2 TI2V 5B** через ComfyUI (720p, 24 к/с).
+- **Full HD**: каждый кусок апскейлится до 1920×1080 (или 1080×1920), через Real-ESRGAN ×2 или обычным масштабированием.
+- **5 / 10 / 15 секунд**: длинные ролики собираются из кусков по ~5 с, и каждый следующий продолжает последний кадр предыдущего.
+- **Loop**: «Плавный loop» (конец перетекает в начало) или «Бумеранг» (вперёд и назад).
+- Очередь заданий, прогресс, библиотека «Мои видео» и скачивание MP4.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Что нужно
+
+- Windows 10/11 и видеокарта NVIDIA с 8+ ГБ видеопамяти (рассчитано на RTX 5070 Laptop 8 ГБ и 32 ГБ ОЗУ).
+- Свежий драйвер NVIDIA.
+- ~30 ГБ свободного места: ComfyUI ~6 ГБ и модели ~17 ГБ.
+- Git, чтобы скачать проект (или скачай ZIP с GitHub).
+
+## Установка
+
+```bat
+git clone https://github.com/mnsgermany/kadr.git
+cd kadr
+install.bat
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+`install.bat` сам:
+1. проверит драйвер NVIDIA;
+2. поставит Node.js через winget, если его нет;
+3. скачает портативный ComfyUI v0.39.0 в папку `comfy\`;
+4. скачает модели (Wan 2.2 5B, текстовый энкодер, VAE, Real-ESRGAN ×2);
+5. соберёт сайт.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Если загрузка прервётся, просто запусти `install.bat` ещё раз: он докачает недостающее.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Запуск
 
-## Learn More
+```bat
+start.bat
+```
 
-To learn more about Next.js, take a look at the following resources:
+Откроется ComfyUI (свёрнутым окном) и сайт на http://localhost:3000. Чтобы остановить, закрой оба окна.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Если ComfyUI у тебя уже стоит в другом месте, задай путь к папке, где лежит `ComfyUI_windows_portable`, переменной `KADR_COMFY_DIR`, или просто запусти ComfyUI сам на порту 8188 (адрес меняется переменной `COMFY_URL`).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Сколько ждать
 
-## Deploy on Vercel
+Это прикидка, точные цифры появятся после первых тестов на твоём ноутбуке:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Ролик | Примерно |
+|---|---|
+| 5 с, Full HD | 7–15 мин |
+| 10 с, Full HD | 15–30 мин |
+| 15 с, Full HD | 25–45 мин |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Первый запуск дольше: модели загружаются в память. Вкладку можно закрыть, генерация продолжится.
+
+## Если что-то не так
+
+- **Не хватает памяти (out of memory)**: закрой игры и браузеры с тяжёлыми вкладками, выбери «Быстрый» апскейл.
+- **Бейдж «нет связи»**: ComfyUI не запущен или ещё загружается. Посмотри его окно.
+- **Сцена «плывёт» в длинных роликах**: это нормально для склейки кусков. Помогает подробное описание и меньшая длительность.
+
+## Разработка
+
+```bash
+npm install
+npm run dev
+```
+
+- `src/lib/workflow.ts` — граф ComfyUI для одного куска.
+- `src/lib/jobs.ts` — очередь и сборка ролика.
+- `src/lib/ffmpeg.ts` — склейка, loop и бумеранг.
+- `src/components/Studio.tsx` — интерфейс.
+
+Готовые ролики лежат в `data/jobs/<id>/video.mp4`.
+
+## Дальше
+
+1. ✅ Генерация, Full HD, удлинение, loop.
+2. Редактор по слоям: таймлайн, текстовые слои поверх видео, обрезка, экспорт.
+3. Предметы: выделение кликом (SAM 2), удаление и замена (Wan VACE).

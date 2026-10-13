@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# generated videos
+/data
+
+# local ComfyUI install and models
+/comfy
