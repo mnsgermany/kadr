@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { annotated, downloadFile, interrupt, runPrompt, type ComfyFile } from "./comfy";
 import { boomerang, concatSegments, crossfadeLoop, probeDuration, thumbnail } from "./ffmpeg";
-import { FPS, STYLES, type GenerateRequest } from "./options";
+import { STYLES, type GenerateRequest } from "./options";
 import { buildSegmentWorkflow } from "./workflow";
 
 export const DATA_DIR = path.resolve(process.env.KADR_DATA_DIR ?? "data");
@@ -139,6 +139,30 @@ function fullPrompt(req: GenerateRequest) {
   return style ? `${req.prompt.trim()}\n\nStyle: ${style}.` : req.prompt.trim();
 }
 
+// What the user sees while a ComfyUI node runs, and the slice of the segment's
+// progress bar it fills. Decoding and upscaling take minutes on 8 GB cards.
+function nodeStage(node: string, f: number | undefined, aiUpscale: boolean): [string, number, number] {
+  const pct = f === undefined ? "" : ` ${Math.round(f * 100)}%`;
+  const end = aiUpscale ? 0.75 : 0.9;
+  switch (node) {
+    case "sampler":
+      return [f === undefined ? "шаг 0 из 20" : `шаг ${Math.round(f * 20)} из 20`, 0, 0.6];
+    case "decode":
+      return ["распаковка кадров (может занять несколько минут)", 0.6, end];
+    case "upLoader":
+    case "upscale":
+      return [`увеличение до Full HD${pct}`, 0.75, 0.97];
+    case "resize":
+    case "video":
+    case "save":
+    case "lastFrame":
+    case "last":
+      return ["сохранение", 0.97, 1];
+    default:
+      return ["загрузка модели", 0, 0];
+  }
+}
+
 async function execute(job: Job) {
   const req = job.request;
   const dir = jobDir(job.id);
@@ -171,9 +195,10 @@ async function execute(job: Job) {
       prefix: `kadr/${job.id}/seg${i}`,
     });
     let lastSaved = 0;
-    const outputs = await runPrompt(wf, (f) => {
-      job.stage = `${label}: шаг ${Math.round(f * 20)} из 20`;
-      job.progress = base + (f * genShare) / segments;
+    const outputs = await runPrompt(wf, (node, f) => {
+      const [name, from, to] = nodeStage(node, f, req.upscale === "ai");
+      job.stage = `${label}: ${name}`;
+      job.progress = base + ((from + (to - from) * (f ?? 0)) * genShare) / segments;
       if (Date.now() - lastSaved > 2000) {
         lastSaved = Date.now();
         void save(job);
@@ -200,7 +225,7 @@ async function execute(job: Job) {
     await crossfadeLoop(joined, final);
   } else if (req.loop === "boomerang") {
     await update("Делаю бумеранг", 0.97);
-    await boomerang(joined, final, FPS);
+    await boomerang(joined, final);
   } else {
     await fs.rename(joined, final);
   }
