@@ -26,10 +26,11 @@ export async function systemStats(): Promise<unknown> {
 }
 
 // Queues a prompt and resolves with its outputs once ComfyUI has executed it.
-// onProgress receives the sampler's step fraction (0..1).
+// onProgress receives the id of the node now running and, for nodes that
+// report it (sampler steps, upscale tiles), how far along it is (0..1).
 export async function runPrompt(
   prompt: Record<string, unknown>,
-  onProgress: (fraction: number) => void,
+  onProgress: (node: string, fraction?: number) => void,
 ): Promise<Record<string, { images?: ComfyFile[] }>> {
   const ws = new WebSocket(`${COMFY_URL.replace(/^http/, "ws")}/ws?clientId=${clientId}`);
   await new Promise<void>((resolve, reject) => {
@@ -55,7 +56,8 @@ export async function runPrompt(
         const msg = JSON.parse(ev.data);
         const d = msg.data ?? {};
         if (d.prompt_id !== promptId) return;
-        if (msg.type === "progress" && d.max > 1) onProgress(d.value / d.max);
+        if (msg.type === "executing" && d.node) onProgress(d.node);
+        if (msg.type === "progress" && d.max > 1 && d.node) onProgress(d.node, d.value / d.max);
         if (msg.type === "execution_success") resolve();
         if (msg.type === "execution_error") reject(new Error(`Ошибка ComfyUI: ${d.exception_message ?? "неизвестная"}`));
         if (msg.type === "execution_interrupted") reject(new Error("Генерация прервана"));
